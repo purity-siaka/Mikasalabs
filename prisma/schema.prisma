@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  CLIENT
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PENDING
+  PAID
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  role          Role      @default(CLIENT)
+  passwordHash  String?
+  inviteToken   String?   @unique
+  inviteExpires DateTime?
+  clientId      String?
+  client        Client?   @relation(fields: [clientId], references: [id])
+  createdAt     DateTime  @default(now())
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  company   String
+  note      String    @default("")
+  users     User[]
+  projects  Project[]
+  invoices  Invoice[]
+  requests  Request[]
+  createdAt DateTime  @default(now())
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title     String
+  status    String   @default("Planning")
+  progress  Int      @default(0)
+  next      String   @default("")
+  visible   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  number      String        @unique
+  description String        @default("")
+  amount      Int
+  dueDate     DateTime?
+  status      InvoiceStatus @default(UNPAID)
+  visible     Boolean       @default(false)
+  paidAt      DateTime?
+  payments    Payment[]
+  createdAt   DateTime      @default(now())
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  invoiceId         String
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  phone             String
+  amount            Int
+  checkoutRequestId String?  @unique
+  mpesaReceipt      String?
+  status            String   @default("PENDING")
+  resultDesc        String?
+  createdAt         DateTime @default(now())
+}
+
+model Request {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  text      String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  DISCOVERY
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Lead {
+  id           String     @id @default(cuid())
+  name         String
+  email        String
+  phone        String     @default("")
+  organisation String     @default("")
+  interest     String
+  message      String
+  source       String     @default("website")
+  status       LeadStatus @default(NEW)
+  consent      Boolean    @default(false)
+  value        Int?
+  followUp     DateTime?
+  notes        String     @default("")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  category    String
+  description String
+  amount      Int
+  reference   String   @default("")
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  detail    String   @default("")
+  createdAt DateTime @default(now())
+}
